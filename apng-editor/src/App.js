@@ -1,9 +1,10 @@
 import './App.css';
+import ImageComponent from "./ImageComponent.js";
 import { Button, List, ListItem, ListItemAvatar, ListItemText } from "@material-ui/core";
 import { createMuiTheme, ThemeProvider } from "@material-ui/core/styles";
 import { purple, orange} from "@material-ui/core/colors"
 import { useState, useEffect } from "react";
-import parseAPNG, { isNotAPNG } from "apng-js";
+import parseAPNG, {isNotAPNG, isNotPNG } from "apng-js";
 
 const theme = createMuiTheme({
   typography: {
@@ -17,21 +18,22 @@ const theme = createMuiTheme({
       main: orange[500]
     },
     text: {
-      primary: "#ffffff"
+      primary: "#ffffff",
+      secondary: "#ffffff"
     }
   }
 });
 
 function App() {
   const [currentFile, setCurrentFile] = useState(null);
-  const [parsedFile, setParsedFile] = useState(null);
+  const [currentFileBuffer, setCurrentFileBuffer] = useState(null);
   useEffect(() => {
-    console.log(currentFile);
-    if (!isNotAPNG(currentFile)) {
-      console.log(parseAPNG(currentFile));
-      setParsedFile(parseAPNG(currentFile));
+    if (currentFile == null) return;
+    async function getBuffer() {
+      setCurrentFileBuffer(await currentFile.arrayBuffer());
     }
-  }, [currentFile])
+    getBuffer();
+  }, [currentFile]);
   return (
     <ThemeProvider theme={theme}>
       <Button variant="contained" component="label" color="primary">
@@ -42,25 +44,30 @@ function App() {
           hidden
         />
       </Button>
-      
-      <List>{fillList(parsedFile)}</List>
+      <List>{fillList(currentFileBuffer)}</List>
+      <List></List>
     </ThemeProvider>
   );
 }
 
-function fillList(parsedFile) {
-  console.log((parsedFile == null));
-  if (parsedFile == null) return;
+function fillList(buffer) {
+  if (buffer == null) return;
+  console.log(buffer);
+  const apng = parseAPNG(buffer);
+  if (apng instanceof Error) {
+    if (isNotPNG(apng)) return;
+    if (isNotAPNG(apng)) return;
+  }
   const listArray = [];
-  for (let i = 0; i < parsedFile.frames.length; i++) {
+  for (let i = 0; i < apng.frames.length; i++) {
     listArray.push(
-      <ListItem>
+      <ListItem key={i}>
         <ListItemAvatar>
-          <img src="" alt=""></img>
+          <ImageComponent frame={apng.frames[i]} width={apng.frames[0].width} height={apng.frames[0].height} />
         </ListItemAvatar>
-        <ListItemText primary={`Frame ${i+1}`} />
+        <ListItemText primary={`Frame ${i+1}`} secondary={`${apng.frames[i].delay}ms`} />
       </ListItem>
-    )
+    );
   }
   return listArray;
 }
